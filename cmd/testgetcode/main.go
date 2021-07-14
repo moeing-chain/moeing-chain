@@ -49,7 +49,7 @@ c664736f6c634300060c0033
 	var stateRoot []byte
 
 	println("total count:", runCount)
-	for i := 0; i < 2000; i++ {
+	for i := 0; i < runCount; i++ {
 		_app := testutils.CreateTestApp0(startTime, initBal, valPubKey, key)
 		//defer _app.Destroy()
 
