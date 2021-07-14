@@ -244,7 +244,7 @@ func TestSEP101_setValTooLong(t *testing.T) {
 	valPubKey := ed25519.GenPrivKey().PubKey()
 	privKey, _ := testutils.GenKeyAndAddr()
 	var stateRoot []byte
-	for i := 0; i < 500; i++ {
+	for i := 0; i < 2000; i++ {
 		println("Xxxxxx", i)
 		//time.Sleep(1 * time.Second)
 		_app := testutils.CreateTestApp0(startTime, initBal, valPubKey, privKey)
