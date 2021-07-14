@@ -20,10 +20,6 @@ import (
 )
 
 func TestDeployContract(t *testing.T) {
-	key, _ := testutils.GenKeyAndAddr()
-	_app := testutils.CreateTestApp(key)
-	defer _app.Destroy()
-
 	// see testdata/counter/contracts/Counter.sol
 	creationBytecode := testutils.HexToBytes(`
 608060405234801561001057600080fd5b5060cc8061001f6000396000f3fe60
@@ -45,10 +41,30 @@ bc221a1460375780636299a6ef146053575b600080fd5b603d607e565b604051
 c664736f6c634300060c0033
 `)
 
-	tx, _, contractAddr := _app.DeployContractInBlock(key, creationBytecode)
-	require.Equal(t, deployedBytecode, _app.GetCode(contractAddr))
-	txGot := _app.GetTx(tx.Hash())
-	require.Equal(t, contractAddr, gethcmn.Address(txGot.ContractAddress))
+	startTime := time.Now()
+	initBal := bigutils.NewU256(testutils.DefaultInitBalance)
+	valPubKey := ed25519.GenPrivKey().PubKey()
+	key, _ := testutils.GenKeyAndAddr()
+	var stateRoot []byte
+	for i := 0; i < 2000; i++ {
+		_app := testutils.CreateTestApp0(startTime, initBal, valPubKey, key)
+		//defer _app.Destroy()
+
+		println("iiiiiii", i)
+		tx, _, contractAddr := _app.DeployContractInBlock(key, creationBytecode)
+		//_app.EnsureTxSuccess(tx.Hash())
+		if i == 0 {
+			stateRoot = _app.StateRoot
+		} else {
+			require.Equal(t, stateRoot, _app.StateRoot)
+		}
+
+		require.Equal(t, deployedBytecode, _app.GetCode(contractAddr))
+		txGot := _app.GetTx(tx.Hash())
+		require.Equal(t, contractAddr, gethcmn.Address(txGot.ContractAddress))
+
+		_app.Destroy()
+	}
 }
 
 func TestEmitLogs(t *testing.T) {

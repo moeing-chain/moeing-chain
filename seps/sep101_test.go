@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"testing"
+	"time"
 
+	"github.com/smartbch/smartbch/internal/bigutils"
 	"github.com/stretchr/testify/require"
+	"github.com/tendermint/tendermint/crypto/ed25519"
 
 	gethcmn "github.com/ethereum/go-ethereum/common"
 	"github.com/smartbch/smartbch/internal/ethutils"
@@ -157,8 +160,17 @@ ffffffffffffffffffffffffffffffffffff82169050919050565b8281833760
 `)
 
 func deploySEP101Proxy(t *testing.T, _app *testutils.TestApp, privKey string) gethcmn.Address {
-	_, _, contractAddr := _app.DeployContractInBlock(privKey, _sep101ProxyCreationBytecode)
-	require.NotEmpty(t, _app.GetCode(contractAddr))
+	tx, _, contractAddr := _app.DeployContractInBlock(privKey, _sep101ProxyCreationBytecode)
+	_app.EnsureTxSuccess(tx.Hash())
+	for i := 0; i < 5; i++ {
+		if len(_app.GetCode(contractAddr)) == 0 {
+			println("code is empty !!!!!!!!!!")
+			_app.WaitMS(100)
+		} else {
+			break
+		}
+	}
+	//require.NotEmpty(t, _app.GetCode(contractAddr))
 	return contractAddr
 }
 
@@ -227,15 +239,42 @@ func TestSEP101_setKeyTooLong(t *testing.T) {
 }
 
 func TestSEP101_setValTooLong(t *testing.T) {
+	startTime := time.Now()
+	initBal := bigutils.NewU256(testutils.DefaultInitBalance)
+	valPubKey := ed25519.GenPrivKey().PubKey()
 	privKey, _ := testutils.GenKeyAndAddr()
-	_app := testutils.CreateTestApp(privKey)
-	defer _app.Destroy()
+	var stateRoot []byte
+	for i := 0; i < 500; i++ {
+		println("Xxxxxx", i)
+		//time.Sleep(1 * time.Second)
+		_app := testutils.CreateTestApp0(startTime, initBal, valPubKey, privKey)
+		//defer _app.Destroy()
 
-	// deploy proxy
-	contractAddr := deploySEP101Proxy(t, _app, privKey)
+		// deploy proxy
+		contractAddr := deploySEP101Proxy(t, _app, privKey)
+		//_app.WaitMS(50)
 
-	// set() with looooong val
-	data := _sep101ABI.MustPack("set", []byte{1, 2, 3}, bytes.Repeat([]byte{39}, 24*1024+1))
-	tx, _ := _app.MakeAndExecTxInBlock(privKey, contractAddr, 0, data)
-	_app.EnsureTxFailed(tx.Hash(), "revert")
+		if i == 0 {
+			stateRoot = _app.StateRoot
+		} else {
+			require.Equal(t, stateRoot, _app.StateRoot)
+		}
+
+		// set() with looooong val
+		key := []byte{1, 2, 3}
+		val := bytes.Repeat([]byte{39}, 24*1024+1)
+		data := _sep101ABI.MustPack("set", key, val)
+		tx, _ := _app.MakeAndExecTxInBlock(privKey, contractAddr, 0, data)
+		_app.EnsureTxFailed(tx.Hash(), "revert")
+		//if _app.GetTx(tx.Hash()).Status == gethtypes.ReceiptStatusSuccessful {
+		//	println("SSSSSS?????")
+		//	data = _sep101ABI.MustPack("get", key)
+		//	statusCode, statusStr, output := _app.Call(addr, contractAddr, data)
+		//	require.Equal(t, 0, statusCode)
+		//	require.Equal(t, "success", statusStr)
+		//	require.Equal(t, []interface{}{val}, _sep101ABI.MustUnpack("get", output))
+		//}
+
+		_app.Destroy()
+	}
 }

@@ -376,7 +376,7 @@ func (_app *TestApp) EnsureTxSuccess(hash gethcmn.Hash) {
 func (_app *TestApp) EnsureTxFailed(hash gethcmn.Hash, msg string) {
 	tx := _app.GetTx(hash)
 	if tx.Status != gethtypes.ReceiptStatusFailed {
-		panic("tx is success")
+		panic(fmt.Sprintf("tx is success, status=%d", tx.Status))
 	}
 	if tx.StatusStr != msg {
 		panic("expected " + msg + ", got " + tx.StatusStr)
